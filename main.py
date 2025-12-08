@@ -3,6 +3,8 @@ import os
 import logging
 from dotenv import load_dotenv
 from discord.ext import commands
+
+from settings import settings
 from util.storage import Storage
 
 load_dotenv()
@@ -25,12 +27,12 @@ async def on_ready():
     await bot.load_extension("cogs.commands")
     await bot.load_extension("cogs.bridge")
 
-    guild = discord.Object(id=1445872911872426048)
+    guild = discord.Object(id=settings.get("guild_id"))
     bot.tree.copy_global_to(guild=guild)
     await bot.tree.sync(guild=guild)
     
-    # For global sync
-    # await bot.tree.sync()
+    if settings.get("global_sync"):
+        await bot.tree.sync()
     
     logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
     logger.info(f'Loaded {len(bot.cogs)} cogs')

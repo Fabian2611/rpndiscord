@@ -1,7 +1,9 @@
 {
+    "guild_id": 956636684743770123,
+    "global_sync": false,
     "bridge_port": 3000,
     "minecraft_endpoint": "127.0.0.1:8081",
-    "bridge_channel_id": 1445872912665153598,
+    "bridge_channel_id": 1447622107839070299,
     "auto_role_ids": [1175102439913955348, 956636684743770127],
-    "info_channel_id": 1445872912665153598
+    "info_channel_id": 956636685536493660
 }

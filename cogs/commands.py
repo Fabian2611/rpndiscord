@@ -14,5 +14,6 @@ class CommandsCog(commands.Cog):
         await interaction.response.send_message("Pong!")
 
 
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(CommandsCog(bot))
