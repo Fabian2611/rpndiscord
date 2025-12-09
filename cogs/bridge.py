@@ -21,6 +21,7 @@ class BridgeCog(commands.Cog):
         self.port = settings.get("bridge_port", 3000)
         self.token = os.getenv("BRIDGE_TOKEN")
         self.channel_id = settings.get("bridge_channel_id", 0)
+        self.info_channel_id = settings.get("info_channel_id", 0)
 
     async def cog_load(self):
         self.runner = web.AppRunner(self.app)
@@ -87,7 +88,7 @@ class BridgeCog(commands.Cog):
         msgid = self.bot.storage.get("player_count_msgid", None)
 
         if not msgid:
-            message = await self.bot.get_channel(self.channel_id).send(f"[🟢] Aktuelle Spieleranzahl: {count}")
+            message = await self.bot.get_channel(self.info_channel_id).send(f"[🟢] Aktuelle Spieleranzahl: {count}")
             self.bot.storage.set("player_count_msgid", message.id)
         else:
             try:
