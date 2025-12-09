@@ -26,6 +26,7 @@ async def on_ready():
     await bot.load_extension("cogs.events")
     await bot.load_extension("cogs.commands")
     await bot.load_extension("cogs.bridge")
+    await bot.load_extension("cogs.tickets")
 
     guild = discord.Object(id=settings.get("guild_id"))
     bot.tree.copy_global_to(guild=guild)

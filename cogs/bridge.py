@@ -92,10 +92,10 @@ class BridgeCog(commands.Cog):
             self.bot.storage.set("player_count_msgid", message.id)
         else:
             try:
-                message = await self.bot.get_channel(self.channel_id).fetch_message(msgid)
+                message = await self.bot.get_channel(self.info_channel_id).fetch_message(msgid)
                 await message.edit(content=f"[🟢] Aktuelle Spieleranzahl: {count}")
             except discord.NotFound:
-                message = await self.bot.get_channel(self.channel_id).send(f"[🟢] Aktuelle Spieleranzahl: {count}")
+                message = await self.bot.get_channel(self.info_channel_id).send(f"[🟢] Aktuelle Spieleranzahl: {count}")
                 self.bot.storage.set("player_count_msgid", message.id)
         self.bot.storage.save()
 

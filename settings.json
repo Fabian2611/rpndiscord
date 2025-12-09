@@ -5,5 +5,7 @@
     "minecraft_endpoint": "127.0.0.1:8081",
     "bridge_channel_id": 1447622107839070299,
     "auto_role_ids": [1175102439913955348, 956636684743770127],
-    "info_channel_id": 956636685536493660
+    "info_channel_id": 956636685536493660,
+    "ticket_creation_channel_id": 1448017374849667192,
+    "ticket_category_id": 1445872912665153596
 }
