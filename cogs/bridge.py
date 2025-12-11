@@ -33,15 +33,14 @@ class BridgeCog(commands.Cog):
         self.site = web.TCPSite(self.runner, '0.0.0.0', self.port)
         await self.site.start()
         logger.info(f"Bridge web server started on port {self.port}")
-        
+
         if settings.get("status_override") is None:
             ping_interval = settings.get("server_ping_seconds", 60)
             self.server_ping_task.change_interval(seconds=ping_interval)
             self.server_ping_task.start()
 
     async def cog_unload(self):
-        if self.server_ping_task.is_running():
-            self.server_ping_task.cancel()
+        self.server_ping_task.cancel()
         if self.site:
             await self.site.stop()
         if self.runner:
@@ -105,29 +104,38 @@ class BridgeCog(commands.Cog):
             self.server_status = "🟢"
         except Exception:
             self.server_status = "🔴"
-        
+
         await self.update_player_count()
 
     async def update_player_count(self):
         assert self.bot.storage;
         count = self.bot.storage.get("player_count", 0)
         msgid = self.bot.storage.get("player_count_msgid", None)
-        
+
         status_override = settings.get("status_override")
         status = status_override if status_override is not None else self.server_status
-        
+
         template = settings.get("info_message_template", "[{status}] Aktuelle Spieleranzahl: {count}")
         content = template.format(count=count, status=status)
 
+        if not self.info_channel_id:
+            logger.warning("info_channel_id not set, skipping player count update")
+            return
+
+        channel = self.bot.get_channel(self.info_channel_id)
+        if not channel:
+            logger.warning(f"Info channel with ID {self.info_channel_id} not found")
+            return
+
         if not msgid:
-            message = await self.bot.get_channel(self.info_channel_id).send(content)
+            message = await channel.send(content, suppress_embeds=True)
             self.bot.storage.set("player_count_msgid", message.id)
         else:
             try:
-                message = await self.bot.get_channel(self.info_channel_id).fetch_message(msgid)
+                message = await channel.fetch_message(msgid)
                 await message.edit(content=content)
             except discord.NotFound:
-                message = await self.bot.get_channel(self.info_channel_id).send(content)
+                message = await channel.send(content, suppress_embeds=True)
                 self.bot.storage.set("player_count_msgid", message.id)
         self.bot.storage.save()
 
