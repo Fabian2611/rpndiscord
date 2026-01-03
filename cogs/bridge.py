@@ -60,6 +60,7 @@ class BridgeCog(commands.Cog):
 
         event_type = data.get("type")
         content = data.get("content")
+        content = content.replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere") if content else ""
         player = data.get("player")
         player_count = data.get("playerCount")
 

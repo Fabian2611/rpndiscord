@@ -8,9 +8,9 @@
     "info_channel_id": 956636685536493660,
     "ticket_creation_channel_id": 1448017374849667192,
     "ticket_category_id": 1445872912665153596,
-    "info_message_template": "[{status}] Server offline.\n",
-    "status_override": "⚠\uFE0F",
+    "info_message_template": "[{status}] Aktuelle Spieleranzahl: {count}.\n",
+    "status_override": null,
     "server_ping_seconds": 60,
-    "minecraft_server_host": "127.0.0.1",
+    "minecraft_server_host": "roleplaynet.de",
     "minecraft_server_port": 25565
 }
