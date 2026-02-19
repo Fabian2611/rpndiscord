@@ -73,19 +73,15 @@ class BridgeCog(commands.Cog):
             logger.warning(f"Channel with ID {self.channel_id} not found")
             return web.Response(status=200)
 
-        assert self.bot.storage;
-
         message = None
         if event_type == "chat":
             message = f"**<{player}>** {content}"
         elif event_type == "join":
             message = f"**{player}** joined the game."
             self.bot.storage.set("player_count", player_count)
-            self.bot.storage.save()
         elif event_type == "leave":
             message = f"**{player}** left the game."
             self.bot.storage.set("player_count", player_count - 1)
-            self.bot.storage.save()
         if message:
             await channel.send(message)
 
@@ -109,7 +105,6 @@ class BridgeCog(commands.Cog):
         await self.update_player_count()
 
     async def update_player_count(self):
-        assert self.bot.storage;
         count = self.bot.storage.get("player_count", 0)
         msgid = self.bot.storage.get("player_count_msgid", None)
         

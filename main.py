@@ -3,7 +3,6 @@ import os
 import logging
 from dotenv import load_dotenv
 from discord.ext import commands
-
 from settings import settings
 from util.storage import Storage
 
@@ -15,30 +14,30 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
-bot.storage = Storage()
 logger = logging.getLogger(__name__)
 
+class MyBot(commands.Bot):
+    storage: Storage
 
-@bot.event
-async def on_ready():
-    await bot.load_extension("cogs.events")
-    await bot.load_extension("cogs.commands")
-    await bot.load_extension("cogs.bridge")
-    await bot.load_extension("cogs.tickets")
+    async def setup_hook(self):
+        self.storage = Storage()
+        await self.load_extension("cogs.events")
+        await self.load_extension("cogs.commands")
+        await self.load_extension("cogs.bridge")
+        await self.load_extension("cogs.tickets")
+        logger.info("Extensions loaded")
 
-    guild = discord.Object(id=settings.get("guild_id"))
-    bot.tree.copy_global_to(guild=guild)
-    await bot.tree.sync(guild=guild)
-    
-    if settings.get("global_sync"):
-        await bot.tree.sync()
-    
-    logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    logger.info(f'Loaded {len(bot.cogs)} cogs')
+    async def on_ready(self):
+        guild = discord.Object(id=settings.get("guild_id"))
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
 
-    bot.storage.load()
-    logger.info("Storage loaded")
+        if settings.get("global_sync"):
+            await self.tree.sync()
 
+        logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
+        logger.info(f'Loaded {len(self.cogs)} cogs')
+
+intents = discord.Intents.all()
+bot = MyBot(command_prefix="!", intents=intents)
 bot.run(os.environ["BOT_TOKEN"], log_handler=None)

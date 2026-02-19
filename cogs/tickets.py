@@ -11,6 +11,20 @@ class TicketCreationView(ui.View):
         super().__init__(timeout=None)
         self.bot = bot
 
+    def _ensure_permissions(self, overwrites, interaction, ticket_type):
+        # Add overwrites for all roles with administrator permissions
+        for roleId in settings.get("admin_role_ids", []):
+            role = interaction.guild.get_role(roleId)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+        if not (ticket_type == "Admin"):
+            # Add overwrites for all moderator roles
+            for roleId in settings.get("moderator_role_ids", []):
+                role = interaction.guild.get_role(roleId)
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
     async def create_ticket(self, interaction: discord.Interaction, ticket_type: str):
         category_id = settings.get("ticket_category_id")
         if not category_id:
@@ -27,12 +41,14 @@ class TicketCreationView(ui.View):
         self.bot.storage.set("ticket_count", ticket_count)
 
         channel_name = f"ticket-{ticket_count}-{ticket_type.lower().replace(' ', '-')}"
-        
+
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
             interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
             interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
+
+        self._ensure_permissions(overwrites, interaction, ticket_type)
 
         try:
             channel = await interaction.guild.create_text_channel(
@@ -63,6 +79,11 @@ class TicketCreationView(ui.View):
     @ui.button(label="Teambewerbung", style=discord.ButtonStyle.success, custom_id="ticket_application")
     async def application_button(self, interaction: discord.Interaction, button: ui.Button):
         await self.create_ticket(interaction, "Application")
+
+    @ui.button(label="Adminticket", style=discord.ButtonStyle.secondary, custom_id="ticket_admin")
+    async def admin_button(self, interaction: discord.Interaction, button: ui.Button):
+        await self.create_ticket(interaction, "Admin")
+
 
 class TicketManagementView(ui.View):
     def __init__(self, bot, is_closed=False):
