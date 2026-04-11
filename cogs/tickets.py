@@ -1,10 +1,30 @@
-import discord
-from discord.ext import commands
-from discord import ui
+import asyncio
+import io
 import logging
+
+import discord
+from discord import ui
+from discord.ext import commands
+
 from settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def generate_transcript(channel: discord.TextChannel) -> discord.File:
+    """Helper function to generate a text transcript of a channel."""
+    transcript = f"Transcript for {channel.name}\n"
+    transcript += "=" * 40 + "\n\n"
+
+    async for msg in channel.history(limit=None, oldest_first=True):
+        time_str = msg.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        transcript += f"[{time_str}] {msg.author}: {msg.clean_content}\n"
+        for att in msg.attachments:
+            transcript += f"[{time_str}] {msg.author}: [Attachment] {att.url}\n"
+
+    buffer = io.BytesIO(transcript.encode('utf-8'))
+    return discord.File(fp=buffer, filename=f"transcript-{channel.name}.txt")
+
 
 class TicketCreationView(ui.View):
     def __init__(self, bot):
@@ -42,28 +62,22 @@ class TicketCreationView(ui.View):
 
         channel_name = f"ticket-{ticket_count}-{ticket_type.lower().replace(' ', '-')}"
 
-        overwrites = {
-            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        overwrites = {interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
             interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-            interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        }
+            interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
 
         self._ensure_permissions(overwrites, interaction, ticket_type)
 
         try:
-            channel = await interaction.guild.create_text_channel(
-                name=channel_name,
-                category=category,
-                overwrites=overwrites
-            )
-            
+            channel = await interaction.guild.create_text_channel(name=channel_name, category=category,
+                overwrites=overwrites)
+
             await channel.send(
                 f"Willkommen {interaction.user.mention}! Bitte beschreibe dein Problem bezüglich {ticket_type}.",
-                view=TicketManagementView(self.bot)
-            )
-            
+                view=TicketManagementView(self.bot))
+
             await interaction.response.send_message(f"Ticket erstellt: {channel.mention}", ephemeral=True)
-            
+
         except Exception as e:
             logger.error(f"Failed to create ticket channel: {e}")
             await interaction.response.send_message("Fehler beim Erstellen des Ticket-Kanals.", ephemeral=True)
@@ -100,29 +114,30 @@ class TicketManagementView(ui.View):
                     child.disabled = not is_closed
                 elif child.custom_id == "ticket_delete":
                     child.disabled = not is_closed
+                elif child.custom_id == "ticket_transcript":
+                    child.disabled = not is_closed
 
     @ui.button(label="Close", style=discord.ButtonStyle.secondary, custom_id="ticket_close")
     async def close_button(self, interaction: discord.Interaction, button: ui.Button):
         if not interaction.user.guild_permissions.manage_channels:
-            await interaction.response.send_message("Du hast keine Berechtigung, dieses Ticket zu schließen.", ephemeral=True)
+            await interaction.response.send_message("Du hast keine Berechtigung, dieses Ticket zu schließen.",
+                                                    ephemeral=True)
             return
 
-        # Disable sending messages for the user
         overwrites = interaction.channel.overwrites
-        
-        # Find the user overwrite (not bot, not default role)
+
         target_user = None
         for target, overwrite in overwrites.items():
             if isinstance(target, discord.Member) and target != interaction.guild.me:
                 target_user = target
                 break
-        
-        # Check if already closed
+
         if target_user:
             if overwrites[target_user].send_messages is False:
                 await interaction.response.send_message("Ticket ist bereits geschlossen.", ephemeral=True)
                 return
-        elif interaction.channel.overwrites.get(interaction.guild.default_role, discord.PermissionOverwrite()).send_messages is False:
+        elif interaction.channel.overwrites.get(interaction.guild.default_role,
+                                                discord.PermissionOverwrite()).send_messages is False:
             await interaction.response.send_message("Ticket ist bereits geschlossen.", ephemeral=True)
             return
 
@@ -131,7 +146,6 @@ class TicketManagementView(ui.View):
             await interaction.channel.set_permissions(target_user, overwrite=overwrites[target_user])
             msg = "Ticket geschlossen. Der Benutzer kann keine Nachrichten mehr senden."
         else:
-            # Fallback if we can't find specific user, just lock for everyone except bot
             await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=False)
             msg = "Ticket geschlossen."
 
@@ -142,19 +156,18 @@ class TicketManagementView(ui.View):
     @ui.button(label="Reopen", style=discord.ButtonStyle.success, custom_id="ticket_reopen")
     async def reopen_button(self, interaction: discord.Interaction, button: ui.Button):
         if not interaction.user.guild_permissions.manage_channels:
-            await interaction.response.send_message("Du hast keine Berechtigung, dieses Ticket wiederzueröffnen.", ephemeral=True)
+            await interaction.response.send_message("Du hast keine Berechtigung, dieses Ticket wiederzueröffnen.",
+                                                    ephemeral=True)
             return
 
-        # Re-enable sending messages
         overwrites = interaction.channel.overwrites
-        
+
         target_user = None
         for target, overwrite in overwrites.items():
             if isinstance(target, discord.Member) and target != interaction.guild.me:
                 target_user = target
                 break
-        
-        # Check if already open
+
         if target_user:
             if overwrites[target_user].send_messages is True:
                 await interaction.response.send_message("Ticket ist bereits offen.", ephemeral=True)
@@ -164,35 +177,60 @@ class TicketManagementView(ui.View):
             overwrites[target_user].send_messages = True
             await interaction.channel.set_permissions(target_user, overwrite=overwrites[target_user])
             msg = "Ticket wiedereröffnet."
-            
+
             new_view = TicketManagementView(self.bot, is_closed=False)
             await interaction.response.edit_message(view=new_view)
             await interaction.followup.send(msg)
         else:
-            await interaction.response.send_message("Konnte den Ticket-Ersteller nicht finden, um das Ticket wiederzueröffnen.")
+            await interaction.response.send_message(
+                "Konnte den Ticket-Ersteller nicht finden, um das Ticket wiederzueröffnen.", ephemeral=True)
+
+    @ui.button(label="Transkript", style=discord.ButtonStyle.primary, custom_id="ticket_transcript")
+    async def transcript_button(self, interaction: discord.Interaction, button: ui.Button):
+        # We process the transcript generation and send it to the user who clicked it.
+        await interaction.response.defer(ephemeral=True)
+        transcript_file = await generate_transcript(interaction.channel)
+        await interaction.followup.send("Hier ist das Transkript für dieses Ticket:", file=transcript_file,
+                                        ephemeral=True)
 
     @ui.button(label="Delete", style=discord.ButtonStyle.danger, custom_id="ticket_delete")
     async def delete_button(self, interaction: discord.Interaction, button: ui.Button):
         if not interaction.user.guild_permissions.manage_channels:
-            await interaction.response.send_message("Du hast keine Berechtigung, dieses Ticket zu löschen.", ephemeral=True)
+            await interaction.response.send_message("Du hast keine Berechtigung, dieses Ticket zu löschen.",
+                                                    ephemeral=True)
             return
 
-        # Check if closed (user cannot send messages)
         is_closed = False
+        target_user = None
         for target, overwrite in interaction.channel.overwrites.items():
             if isinstance(target, discord.Member) and target != interaction.guild.me:
+                target_user = target
                 if overwrite.send_messages is False:
                     is_closed = True
-                    break
-        
-        if not is_closed and interaction.channel.overwrites.get(interaction.guild.default_role, discord.PermissionOverwrite()).send_messages is False:
+
+        if not is_closed and interaction.channel.overwrites.get(interaction.guild.default_role,
+                                                                discord.PermissionOverwrite()).send_messages is False:
             is_closed = True
-        
+
         if is_closed:
             await interaction.response.send_message("Ticket wird in 5 Sekunden gelöscht...")
+
+            # Send the transcript to the ticket creator via DM before channel is deleted
+            if target_user:
+                try:
+                    transcript_file = await generate_transcript(interaction.channel)
+                    await target_user.send(
+                        f"Dein Ticket **{interaction.channel.name}** auf {interaction.guild.name} wurde gelöscht. Hier ist das Transkript:",
+                        file=transcript_file)
+                except discord.Forbidden:
+                    logger.warning(f"Could not send transcript DM to {target_user} (DMs probably closed).")
+
+            await asyncio.sleep(5)
             await interaction.channel.delete(reason="Ticket auf Benutzeranfrage gelöscht")
         else:
-            await interaction.response.send_message("Du musst das Ticket schließen, bevor du es löschen kannst.", ephemeral=True)
+            await interaction.response.send_message("Du musst das Ticket schließen, bevor du es löschen kannst.",
+                                                    ephemeral=True)
+
 
 class Tickets(commands.Cog):
     def __init__(self, bot):
@@ -219,15 +257,12 @@ class Tickets(commands.Cog):
             logger.warning(f"Ticket creation channel {channel_id} not found.")
             return
 
-        # Check if message already exists to avoid spamming
         if self.bot.storage.get("ticket_panel_sent"):
             return
 
-        await channel.send(
-            "Erstelle ein Ticket:",
-            view=TicketCreationView(self.bot)
-        )
+        await channel.send("Erstelle ein Ticket:", view=TicketCreationView(self.bot))
         self.bot.storage.set("ticket_panel_sent", True)
+
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))

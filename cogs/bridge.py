@@ -74,14 +74,15 @@ class BridgeCog(commands.Cog):
             return web.Response(status=200)
 
         message = None
-        if event_type == "chat":
-            message = f"**<{player}>** {content}"
-        elif event_type == "join":
-            message = f"**{player}** joined the game."
-            self.bot.storage.set("player_count", player_count)
-        elif event_type == "leave":
-            message = f"**{player}** left the game."
-            self.bot.storage.set("player_count", player_count - 1)
+        match event_type:
+            case "chat":
+                message = f"**<{player}>** {content}"
+            case "join":
+                message = f"**{player}** joined the game."
+                self.bot.storage.set("player_count", player_count)
+            case "leave":
+                message = f"**{player}** left the game."
+                self.bot.storage.set("player_count", player_count - 1)
         if message:
             await channel.send(message)
 
@@ -138,4 +139,3 @@ class BridgeCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(BridgeCog(bot))
-
