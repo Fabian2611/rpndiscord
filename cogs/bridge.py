@@ -113,6 +113,10 @@ class BridgeCog(commands.Cog):
         status = status_override if status_override is not None else self.server_status
         
         template = settings.get("info_message_template", "[{status}] Aktuelle Spieleranzahl: {count}")
+        otemplate = settings.get("info_message_offline_template")
+        if status == "🔴" and otemplate is not None:
+            template = otemplate
+
         content = template.format(count=count, status=status)
 
         if not self.info_channel_id:
